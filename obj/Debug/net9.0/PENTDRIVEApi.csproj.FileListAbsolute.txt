@@ -131,3 +131,4 @@ C:\Users\vinic\OneDrive\Documentos\PENTDRIVEApi\bin\Debug\net9.0\ru\Microsoft.Co
 C:\Users\vinic\OneDrive\Documentos\PENTDRIVEApi\bin\Debug\net9.0\tr\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 C:\Users\vinic\OneDrive\Documentos\PENTDRIVEApi\bin\Debug\net9.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
 C:\Users\vinic\OneDrive\Documentos\PENTDRIVEApi\bin\Debug\net9.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.MSBuild.BuildHost.resources.dll
+C:\Users\vinic\OneDrive\Documentos\PENTDRIVEApi\obj\Debug\net9.0\PENTDRIVEApi.sourcelink.json
