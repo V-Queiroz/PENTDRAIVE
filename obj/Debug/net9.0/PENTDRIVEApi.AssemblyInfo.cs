@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PENTDRIVEApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+acef0d22f9e084ca9d34287b857afd8a73251737")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+685463a6d08eb6af3d039b869c2559ec0ef0f56f")]
 [assembly: System.Reflection.AssemblyProductAttribute("PENTDRIVEApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PENTDRIVEApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
