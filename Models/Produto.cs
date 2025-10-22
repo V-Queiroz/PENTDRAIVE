@@ -8,16 +8,16 @@ namespace PENTDRIVEApi.Models
         [Key]
         [Column("ID_PRODUTO")]
         public int Id { get; set; }
-        public string Nome { get; set; }
+        public string? Nome { get; set; }
 
         [Column("PRECO_UNI")]
         public decimal Preco { get; set; }
-        
+
         [Column("QNTD_ESTOQUE")]
         public int Estoque { get; set; }
 
         [Column("COD_BARRAS")]
-        public string CodigoBarras { get; set; }
+        public string? CodigoBarras { get; set; }
 
         public Produto() { }
 

@@ -1,0 +1,18 @@
+# Binaries and temporary files
+[Bb]in/
+[Oo]bj/
+*.log
+*.vspscc
+*.vshost.*
+*.suo
+*.user
+*.pdb
+*.orig
+
+# VS Code directory (optional, but recommended)
+.vscode/
+
+# Package files
+*.nupkg
+
+appsettings.Development.json
