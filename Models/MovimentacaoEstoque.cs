@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using PENTDRIVEApi.Models;
 
 namespace PENTDRIVEApi.Models
 {
@@ -22,12 +23,17 @@ namespace PENTDRIVEApi.Models
 
         [Column("ID_PRODUTO")]
         public int IdProduto { get; set; }
+        [ForeignKey(nameof(IdProduto))]
+        public Produto? Produto { get; set; }
 
         [Column("ID_USUARIO")]
         public int IdUsuario { get; set; }
+        
 
         [Column("ID_VENDA")]
         public int? IdVenda { get; set; }
+        [ForeignKey(nameof(IdVenda))]
+        public Venda? Venda { get; set; }
 
 
 

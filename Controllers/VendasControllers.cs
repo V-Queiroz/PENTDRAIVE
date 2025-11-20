@@ -5,11 +5,18 @@ using PENTDRIVEApi.DTOs;
 using PENTDRIVEApi.Models;
 using System.Linq;
 using System;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using Microsoft.VisualBasic;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace PENTDRIVEApi.Controllers
 {
+    
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class VendasController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -19,30 +26,121 @@ namespace PENTDRIVEApi.Controllers
             _context = context;
         }
 
+        [HttpPost("ProcessarPagamento")]
+        public async Task<IActionResult> ProcessarPagamento([FromBody] PagamentoRequestDTO request)
+        {
+            //simulação do Gateway de pagamento
+            if(request.DadosCartao.Cvv == "000" || string.IsNullOrEmpty(request.DadosCartao.Cvv))
+            {
+                return BadRequest (new
+                {
+                    message = "Transação negada pela administradora. Código de erro: CVV INVÁLIDO ou vazio.",
+                    status = "FALHA"
+
+                });
+            }
+
+        //preparação da venda, so executa se o pagamento for aprovado
+        var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if(string.IsNullOrEmpty (userIdString)) return Unauthorized("Usuário não autenticado ou token inválido.");
+
+        int userId = int.Parse(userIdString!);  
+        decimal valorTotal = 0;
+
+        var venda = new Venda
+        {
+            CnpjCpf = request.CnpjCpf,
+            FormaPagamento = request.FormaPagamento,
+            DataHora = DateTime.Now,
+            Status = "PAGO",
+            IdUsuario = userId,
+            ItensVenda = new List<ItemVenda>(),
+            Movimentacoes = new List<MovimentacaoEstoque>()
+        };
+
+        // isso aq pra garantir que a lista de itens não seja alterada durante o loop
+        foreach (var itemDTO in request.Itens.ToList())
+        {
+            var produto = await _context.Produtos.FirstOrDefaultAsync(p => p.CodigoBarras == itemDTO.CodigoBarras);
+            
+            // Validação de estoque e existência do produto
+            if(produto == null) 
+            {
+                return NotFound ($"Produto com Código de Barras {itemDTO.CodigoBarras} não encontrado.");
+            }
+
+            if(produto.Estoque < itemDTO.Quantidade)
+            {
+                return BadRequest($"Estoque insulficiente para {produto.Nome}. Disponivel: {produto.Estoque}");
+            }
+
+            produto.Estoque -= itemDTO.Quantidade;
+
+            var itemVenda = new ItemVenda
+            {
+                ProdutoId = produto.Id,
+                Quantidade = itemDTO.Quantidade,
+                PrecoUnitario = produto.Preco,
+                Subtotal = produto.Preco * itemDTO.Quantidade,
+                Venda = venda
+            };
+            venda.ItensVenda.Add(itemVenda);
+
+            var movimentacao = new MovimentacaoEstoque
+             {
+                 TipoMovimentacao = "SAIDA",
+                 Quantidade = itemDTO.Quantidade,
+                 DataHora = venda.DataHora,
+                 IdProduto = produto.Id,
+                 IdUsuario = userId,
+                 Venda = venda
+             };
+
+             venda.Movimentacoes.Add(movimentacao);
+
+             valorTotal += itemVenda.Subtotal;
+        } 
+
+        venda.ValorTotal = valorTotal;
+        _context.Vendas.Add(venda);
+
+        await _context.SaveChangesAsync();
+
+        return Ok (new
+        {
+            IdVenda = venda.Id,
+            valorTotal = venda.ValorTotal,
+            message = "Transação Aprovada. Venda e Movimentação de Estoque registradas com sucesso.",
+            status = "SUCESSO"
+        });
+
+    }
+
         private const int UsuarioResponsavelId = 1;
 
         [HttpPost]
         public async Task<IActionResult> PostVenda(VendaRequest request)
         {
-            // Inicia uma transação explícita
+
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
                 try
                 {
                     decimal valorTotalVenda = 0;
                     var itensVenda = new List<ItemVenda>();
-                    
-                    // Lista auxiliar para armazenar os produtos modificados, que serão salvos DEPOIS
-                    var produtosParaAtualizar = new List<Produto>(); 
+
+
+                    var produtosParaAtualizar = new List<Produto>();
 
                     foreach (var item in request.Itens)
                     {
                         // Carrega o produto, e o EF Core começa a rastreá-lo
-                        var produto = await _context.Produtos.FindAsync(item.ProdutoId);
+                        var produto = await _context.Produtos
+                            .FirstOrDefaultAsync(p => p.CodigoBarras == item.CodigoBarras);
 
                         if (produto == null)
                         {
-                            return NotFound($"Produto com ID {item.ProdutoId} não encontrado");
+                            return NotFound($"Produto com Código de Barras {item.CodigoBarras} não encontrado");
                         }
 
                         if (produto.Estoque < item.Quantidade)
@@ -51,29 +149,28 @@ namespace PENTDRIVEApi.Controllers
                         }
 
                         decimal subtotal = produto.Preco * item.Quantidade;
-                        valorTotalVenda += subtotal; 	
+                        valorTotalVenda += subtotal;
 
                         itensVenda.Add(new ItemVenda
                         {
-                            ProdutoId = item.ProdutoId,
+                            ProdutoId = produto.Id,
                             Quantidade = item.Quantidade,
                             PrecoUnitario = produto.Preco,
                             Subtotal = subtotal
                         });
 
-                        // 1. Aplica a subtração no objeto rastreado
-                        produto.Estoque -= item.Quantidade; 
-                        
-                        // 2. Desanexa imediatamente o produto para que a 1ª chamada SALVE APENAS A VENDA.
-                        // Usamos '!' para garantir ao compilador que 'produto' não é nulo.
-                        _context.Entry(produto!).State = EntityState.Detached; 
-                        
-                        // 3. Adiciona o produto modificado a uma lista auxiliar para salvar na 2ª chamada.
-                        produtosParaAtualizar.Add(produto); 
+
+                        produto.Estoque -= item.Quantidade;
+
+
+                        _context.Entry(produto!).State = EntityState.Detached;
+
+
+                        produtosParaAtualizar.Add(produto);
                     }
 
                     var novaVenda = new Venda
-                    { 	
+                    {
                         CnpjCpf = request.CnpjCpf,
                         FormaPagamento = request.FormaPagamento,
                         ValorPago = request.ValorPago,
@@ -83,40 +180,40 @@ namespace PENTDRIVEApi.Controllers
                     };
 
                     _context.Vendas.Add(novaVenda);
-                    
-                    // 4. PRIMEIRA CHAMADA: Salva a Venda (obtendo o ID). O Produto é ignorado (Detached).
-                    await _context.SaveChangesAsync(); 
 
-                    // 5. ANEXA NOVAMENTE: Anexa os produtos modificados e os marca para UPDATE
-                    foreach(var produto in produtosParaAtualizar)
+
+                    await _context.SaveChangesAsync();
+
+
+                    foreach (var produto in produtosParaAtualizar)
                     {
-                       
-                        _context.Produtos.Update(produto); 
+
+                        _context.Produtos.Update(produto);
                     }
-                    
-                   
-                    foreach (var item in itensVenda)
+
+
+                    foreach (var itemVenda in itensVenda)
                     {
-                        item.VendaId = novaVenda.Id;
-                        _context.ItensVenda.Add(item);
+                        itemVenda.VendaId = novaVenda.Id;
+                        _context.ItensVenda.Add(itemVenda);
                         _context.MovimentacoesEstoque.Add(new MovimentacaoEstoque
                         {
-                            IdUsuario = UsuarioResponsavelId, 
-                            IdProduto = item.ProdutoId,
-                            Quantidade = -item.Quantidade,
+                            IdUsuario = UsuarioResponsavelId,
+                            IdProduto = itemVenda.ProdutoId,
+                            Quantidade = -itemVenda.Quantidade,
                             DataHora = DateTime.Now,
-                            TipoMovimentacao = "SAIDA", 
-                            IdVenda = novaVenda.Id 
+                            TipoMovimentacao = "SAIDA",
+                            IdVenda = novaVenda.Id
                         });
                     }
 
-                    
-                    await _context.SaveChangesAsync(); 
+
+                    await _context.SaveChangesAsync();
 
                     await transaction.CommitAsync();
 
-                   
-                    return CreatedAtAction(nameof(PostVenda), new { id = novaVenda.Id }, novaVenda); 
+
+                    return CreatedAtAction(nameof(PostVenda), new { id = novaVenda.Id }, novaVenda);
                 }
                 catch (Exception)
                 {
@@ -126,5 +223,26 @@ namespace PENTDRIVEApi.Controllers
             }
         }
 
+        [HttpGet("{id}")]
+        
+    public async Task<IActionResult> GetVenda (int id)
+            {
+                var venda = await _context.Vendas
+                .Include(v => v.ItensVenda!)
+                        .ThenInclude(i => i.Produto)
+                    .FirstOrDefaultAsync(v => v.Id == id);
+
+            if (venda == null)
+            {
+                return NotFound($"Venda do item com Id {id} não encontrada.");
+            } 
+                return Ok(venda);
+            }
+        [HttpGet]
+         public async Task<ActionResult<IEnumerable<Venda>>> GetTodasVendas()
+        {
+            return await _context.Vendas.ToListAsync();
+        }
     }
 }
+

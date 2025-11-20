@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using PENTDRIVEApi.Controllers;
 using PENTDRIVEApi.Models;
 
 namespace PENTDRIVEApi.Data
@@ -31,7 +32,7 @@ namespace PENTDRIVEApi.Data
                 .HasForeignKey(iv => iv.ProdutoId)
                 .IsRequired();
                 
-                modelBuilder.Entity<ItemVenda>()
+            modelBuilder.Entity<ItemVenda>()
                 .Property(iv => iv.Subtotal)
                 .ValueGeneratedOnAddOrUpdate()
                 .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
@@ -41,8 +42,8 @@ namespace PENTDRIVEApi.Data
         public DbSet<Produto> Produtos { get; set; }
         public DbSet<Venda> Vendas { get; set; }
         public DbSet<ItemVenda> ItensVenda { get; set; }
-
         public DbSet<MovimentacaoEstoque> MovimentacoesEstoque { get; set; }
+        public DbSet<Usuario> Usuarios { get; set; } 
 
 
     }

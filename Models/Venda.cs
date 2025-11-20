@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using PENTDRIVEApi.Models;
 
 namespace PENTDRIVEApi.Models
 {
@@ -16,6 +17,7 @@ namespace PENTDRIVEApi.Models
         public string? CnpjCpf { get; set; }
 
         [Column("FORMA_PAG")]
+        [StringLength(10)]
         public string? FormaPagamento { get; set; }
 
         [Column("VALOR_PAGO")]
@@ -30,7 +32,14 @@ namespace PENTDRIVEApi.Models
         [Column("DATA_HORA")]
         public DateTime DataHora { get; set; }
 
+        [Column("ID_USUARIO")]
+        public int? IdUsuario { get; set; }
+
+        [ForeignKey("IdUsuario")]
+        public Usuario? Usuario { get; set; }
+
         public ICollection<ItemVenda>? ItensVenda { get; set; }
+        public ICollection<MovimentacaoEstoque>? Movimentacoes { get; set; }
     }
 
 
